@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Certificate Privacy Overlay</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f0f7ff;
+      color: #333;
+      text-align: center;
+      padding: 40px 20px;
+    }
+
+    h2 {
+      color: #1e88e5;
+      font-weight: 600;
+      margin-bottom: 30px;
+    }
+
+    input[type="file"] {
+      display: block;
+      width: calc(100% - 2rem);
+      max-width: 500px;
+      margin: 0 auto 20px auto;
+      padding: 12px 20px;
+      border: 2px dashed #90caf9;
+      background-color: #e3f2fd;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    input[type="file"]:hover {
+      background-color: #bbdefb;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      margin: 10px auto;
+      padding: 12px;
+      font-size: 16px;
+      border: none;
+      border-radius: 8px;
+      background-color: #1e88e5;
+      color: white;
+      cursor: pointer;
+      transition: background 0.3s ease;
+    }
+
+    button:disabled {
+      background-color: #90caf9;
+      cursor: not-allowed;
+    }
+
+    button:hover:not(:disabled) {
+      background-color: #1565c0;
+    }
+
+    canvas {
+      display: none;
+    }
+
+    .CONTAINER {
+      margin: auto;
+      max-width: 540px;
+      display: flex;
+      justify-content: space-between;
+      gap: 10px;
+    }
+
+  </style>  
+</head>
+<body>
+  <h2>Certificate Privacy Overlay</h2>
+  <input type="file" id="pdfInput" accept="application/pdf" />
+  <br>
+  <div class="CONTAINER">
+    <button id="downloadBtn" disabled>Download PNG</button>
+    <button id="downloadPdfBtn" disabled>Download PDF</button>
+  </div>
+  <canvas id="pdfCanvas"></canvas>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  <script>
+    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/2.16.105/pdf.worker.min.js';
+
+    const canvas = document.getElementById('pdfCanvas');
+    const ctx = canvas.getContext('2d');
+    const pdfInput = document.getElementById('pdfInput');
+    const downloadBtn = document.getElementById('downloadBtn');
+    const downloadPdfBtn = document.getElementById('downloadPdfBtn');
+
+    pdfInput.addEventListener('change', async (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const arrayBuffer = await file.arrayBuffer();
+      const pdf = await pdfjsLib.getDocument({ data: arrayBuffer }).promise;
+      const page = await pdf.getPage(1);
+
+      const scale = 4.0;  // Higher scale for better quality
+      const viewport = page.getViewport({ scale });
+
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+
+      await page.render({
+        canvasContext: ctx,
+        viewport: viewport
+      }).promise;
+
+      const overlay = new Image();
+      overlay.src = 'overlay.png';  // Path to the overlay image
+      overlay.onload = () => {
+        ctx.drawImage(overlay, 0, 0, canvas.width, canvas.height);
+        downloadBtn.disabled = false;
+        downloadPdfBtn.disabled = false;
+      };
+    });
+
+    downloadBtn.addEventListener('click', () => {
+      const link = document.createElement('a');
+      link.download = 'Certificate.png';
+      link.href = canvas.toDataURL('image/png');
+      link.click();
+    });
+
+    downloadPdfBtn.addEventListener('click', async () => {
+      const { jsPDF } = window.jspdf;
+      const pdf = new jsPDF({
+        orientation: 'landscape',
+        unit: 'px',
+        format: [canvas.width, canvas.height]
+      });
+
+      const imgData = canvas.toDataURL('image/png');
+      pdf.addImage(imgData, 'PNG', 0, 0, canvas.width, canvas.height);
+      pdf.save('Certificate.pdf');
+    });
+  </script>
+</body>
+</html>
